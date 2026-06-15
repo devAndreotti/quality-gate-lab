@@ -157,7 +157,7 @@ jobs:
 
       - name: SonarCloud scan
         if: steps.sonar-config.outputs.enabled == 'true'
-        uses: SonarSource/sonarqube-scan-action@v5
+        uses: SonarSource/sonarqube-scan-action@v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

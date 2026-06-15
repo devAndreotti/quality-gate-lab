@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
-const { runGhJson, runGitHubApi, splitRepo } = require('./lib/github.cjs');
+const {
+  resolveRepo,
+  runGhJson,
+  runGitHubApi,
+  splitRepo,
+} = require('./lib/github.cjs');
 
 const DEFAULT_ADVISORY_CHECKS = [
   'SonarCloud',
@@ -10,7 +15,7 @@ const DEFAULT_ADVISORY_CHECKS = [
 ];
 
 function parseArgs(argv) {
-  const args = { pr: null, repo: process.env.GITHUB_REPOSITORY || null, json: false, output: null };
+  const args = { pr: null, repo: process.env.GITHUB_REPOSITORY || null, json: false, output: null, requiredChecks: null };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--pr') args.pr = Number(argv[++index]);
@@ -20,6 +25,8 @@ function parseArgs(argv) {
     else if (arg === '--json') args.json = true;
     else if (arg === '--output') args.output = argv[++index];
     else if (arg.startsWith('--output=')) args.output = arg.slice('--output='.length);
+    else if (arg === '--required-checks') args.requiredChecks = argv[++index];
+    else if (arg.startsWith('--required-checks=')) args.requiredChecks = arg.slice('--required-checks='.length);
   }
   return args;
 }
@@ -128,10 +135,46 @@ function isAdvisoryCheck(name, requiredNames = []) {
 }
 
 function normalizeRequiredCheckNames(protection) {
-  return [
+  return [...new Set([
     ...(protection?.requiredChecks || []),
     ...(protection?.checks || []).map((check) => check.context || check.name).filter(Boolean),
-  ].filter(Boolean);
+  ].filter(Boolean))];
+}
+
+function parseRequiredChecks(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+  return String(value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function readPolicyRequiredChecks(cwd = process.cwd()) {
+  try {
+    const policyPath = path.join(cwd, '.quality-gate', 'policy.json');
+    const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
+    return Array.isArray(policy?.ci?.requiredChecks) ? policy.ci.requiredChecks : [];
+  } catch {
+    return [];
+  }
+}
+
+function resolveRequiredChecks(options = {}) {
+  const explicit = parseRequiredChecks(options.requiredChecks);
+  if (explicit.length) return [...new Set(explicit)];
+  const fromEnv = parseRequiredChecks(process.env.REQUIRED_CHECKS);
+  if (fromEnv.length) return [...new Set(fromEnv)];
+  return options.cwd ? [...new Set(readPolicyRequiredChecks(options.cwd))] : [];
+}
+
+function applyRequiredChecksFallback(branchProtection, requiredChecks) {
+  if (branchProtection.requiredChecks?.length || !requiredChecks.length) return branchProtection;
+  return {
+    ...branchProtection,
+    requiredChecks,
+    checks: requiredChecks.map((context) => ({ context })),
+    requiredChecksSource: 'fallback',
+  };
 }
 
 function categorizeChecks(checks = [], branchProtection = {}) {
@@ -259,7 +302,10 @@ function fetchBranchProtection({ repo, baseRefName, ghJson, githubApi, allowApiF
   const normalize = (result) => ({
     status: 'known',
     strict: Boolean(result?.strict),
-    requiredChecks: [...(result?.contexts || []), ...(result?.checks || []).map((check) => check.context || check.name).filter(Boolean)],
+    requiredChecks: [...new Set([
+      ...(result?.contexts || []),
+      ...(result?.checks || []).map((check) => check.context || check.name).filter(Boolean),
+    ].filter(Boolean))],
     checks: result?.checks || [],
   });
   try {
@@ -500,8 +546,7 @@ function buildSnapshot(options) {
   const prNumber = Number(options.pr);
   if (!Number.isInteger(prNumber) || prNumber < 1) throw new Error('--pr precisa ser numero positivo');
   const ghJson = options.ghJson || runGhJson;
-  const repo = options.repo || process.env.GITHUB_REPOSITORY;
-  if (!repo) throw new Error('--repo ou GITHUB_REPOSITORY requerido');
+  const repo = resolveRepo({ repo: options.repo, cwd: options.cwd, execFileSync: options.execFileSync });
   const githubApi = options.githubApi || runGitHubApi;
   const allowApiFallback = Boolean(options.githubApi);
 
@@ -526,8 +571,12 @@ function buildSnapshot(options) {
     githubApi,
     allowApiFallback,
   });
+  const effectiveBranchProtection = applyRequiredChecksFallback(
+    branchProtection,
+    resolveRequiredChecks({ requiredChecks: options.requiredChecks, cwd: options.cwd }),
+  );
   const categorizedChecks = {
-    ...categorizeChecks(checkQuery.items, branchProtection),
+    ...categorizeChecks(checkQuery.items, effectiveBranchProtection),
     status: checkQuery.status,
     error: checkQuery.error || null,
   };
@@ -588,7 +637,7 @@ function buildSnapshot(options) {
     },
     ci: normalizeChecks(checkQuery.items),
     checks: categorizedChecks,
-    branchProtection,
+    branchProtection: effectiveBranchProtection,
     reviewThreads,
     copilotBlockers: collectCopilotBlockers(inlineComments),
     humanBlockers: collectHumanBlockers(reviews),
@@ -599,7 +648,7 @@ function buildSnapshot(options) {
     pr: snapshot.pr,
     checks: categorizedChecks,
     reviewThreads,
-    branchProtection,
+    branchProtection: effectiveBranchProtection,
     copilotBlockers: snapshot.copilotBlockers,
     humanBlockers: snapshot.humanBlockers,
   });
@@ -623,7 +672,12 @@ function printHuman(snapshot) {
 
 function main(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
-  const snapshot = buildSnapshot({ pr: args.pr, repo: args.repo });
+  const snapshot = buildSnapshot({
+    pr: args.pr,
+    repo: args.repo,
+    requiredChecks: args.requiredChecks,
+    cwd: process.cwd(),
+  });
   if (args.output) writeOutput(args.output, snapshot);
   if (args.json) console.log(JSON.stringify(snapshot, null, 2));
   else printHuman(snapshot);

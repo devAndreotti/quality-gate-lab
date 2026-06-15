@@ -73,13 +73,24 @@ function createGithubApi(routes = {}) {
   };
 }
 
-test('parseArgs supports pr, repo, json, and output', () => {
-  const args = parseArgs(['--pr', '42', '--repo', 'owner/repo', '--json', '--output', 'snapshot.json']);
+test('parseArgs supports pr, repo, json, output, and required checks', () => {
+  const args = parseArgs([
+    '--pr',
+    '42',
+    '--repo',
+    'owner/repo',
+    '--json',
+    '--output',
+    'snapshot.json',
+    '--required-checks',
+    'Lint,Tests & ratchet',
+  ]);
 
   assert.equal(args.pr, 42);
   assert.equal(args.repo, 'owner/repo');
   assert.equal(args.json, true);
   assert.equal(args.output, 'snapshot.json');
+  assert.equal(args.requiredChecks, 'Lint,Tests & ratchet');
 });
 
 test('normalizeChecks summarizes check state and keeps job details', () => {
@@ -104,13 +115,62 @@ test('buildSnapshot normalizes current gh pr checks fields', () => {
     ],
   });
   const githubApi = createGithubApi({
-    '/repos/owner/repo/branches/main/protection/required_status_checks': { contexts: ['Lint'], checks: [] },
+    '/repos/owner/repo/branches/main/protection/required_status_checks': {
+      contexts: ['Lint'],
+      checks: [{ context: 'Lint' }],
+    },
   });
 
   const snapshot = buildSnapshot({ pr: 42, repo: 'owner/repo', ghJson, githubApi });
 
   assert.equal(snapshot.checks.required[0].conclusion, 'success');
   assert.equal(snapshot.checks.advisory[0].conclusion, 'failure');
+  assert.equal(snapshot.merge.status, 'ready_with_advisory');
+});
+
+test('buildSnapshot infers repo from git origin when repo is omitted', () => {
+  const ghJson = createGhJson({
+    checks: [
+      { name: 'Lint', state: 'SUCCESS', bucket: 'pass', link: 'https://ci/lint' },
+    ],
+  });
+  const githubApi = createGithubApi({
+    '/repos/owner/repo/branches/main/protection/required_status_checks': { contexts: ['Lint'], checks: [] },
+  });
+
+  const snapshot = buildSnapshot({
+    pr: 42,
+    ghJson,
+    githubApi,
+    execFileSync: () => 'https://github.com/owner/repo.git\n',
+  });
+
+  assert.equal(snapshot.repo, 'owner/repo');
+  assert.deepEqual(snapshot.branchProtection.requiredChecks, ['Lint']);
+  assert.equal(snapshot.checks.required[0].conclusion, 'success');
+});
+
+test('buildSnapshot uses required checks fallback when branch protection is inaccessible', () => {
+  const ghJson = createGhJson({
+    pr: pr({ mergeStateStatus: 'UNSTABLE' }),
+    checks: [
+      { name: 'PR report', state: 'IN_PROGRESS', bucket: 'pending', link: 'https://ci/report' },
+      { name: 'Lint', state: 'SUCCESS', bucket: 'pass', link: 'https://ci/lint' },
+    ],
+  });
+
+  const snapshot = buildSnapshot({
+    pr: 42,
+    repo: 'owner/repo',
+    ghJson,
+    requiredChecks: 'Lint',
+  });
+
+  assert.deepEqual(snapshot.branchProtection.requiredChecks, ['Lint']);
+  assert.equal(snapshot.branchProtection.requiredChecksSource, 'fallback');
+  assert.equal(snapshot.checks.required.some((check) => check.name === 'PR report'), false);
+  assert.equal(snapshot.checks.unknown.some((check) => check.name === 'PR report'), true);
+  assert.equal(snapshot.merge.ready, true);
   assert.equal(snapshot.merge.status, 'ready_with_advisory');
 });
 

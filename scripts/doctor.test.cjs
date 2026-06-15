@@ -43,6 +43,14 @@ test('doctor fails when required UI surface has no workflow job', () => {
   assert.match(check.detail, /UI validation/);
 });
 
+test('doctor accepts legacy node workflow split into tests ratchet job', () => {
+  const check = checkWorkflowSurfaces('jobs:\n  test:\n    name: Tests & ratchet\n', {
+    project: { surfaces: [{ type: 'node', root: '.', required: true }] },
+  });
+
+  assert.equal(check.level, 'ok');
+});
+
 test('policy required checks match workflow job names', () => {
   const workflow = fs.readFileSync(path.join(root, '.github/workflows/quality-gate.yml'), 'utf8');
   const policy = loadPolicy(root);

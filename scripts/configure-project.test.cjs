@@ -111,3 +111,46 @@ test('configureProject omits SonarCloud when skipSonar is true', () => {
   assert.doesNotMatch(workflow, /needs: \[security, lint, test, sonar, docker\]/);
   assert.match(workflow, /needs: \[security, lint, test, docker\]/);
 });
+
+test('configureProject writes node workflow for consumer project commands', () => {
+  const project = tempProject();
+  writePackagedFiles(project);
+  fs.writeFileSync(path.join(project, 'package.json'), JSON.stringify({
+    scripts: {
+      test: 'node --test test/*.test.js',
+      lint: 'node --check src/index.js',
+      build: 'node src/index.js',
+    },
+  }, null, 2));
+
+  const result = configureProject({ projectRoot: project, profile: 'node', skipSonar: true });
+
+  const workflow = fs.readFileSync(path.join(project, '.github/workflows/quality-gate.yml'), 'utf8');
+  const policy = JSON.parse(fs.readFileSync(path.join(project, '.quality-gate/policy.json'), 'utf8'));
+  const sonar = fs.readFileSync(path.join(project, 'sonar-project.properties'), 'utf8');
+
+  assert.equal(result.profile.name, 'node');
+  assert.match(workflow, /npm run test --if-present/);
+  assert.match(workflow, /npm run lint --if-present/);
+  assert.match(workflow, /npm run build --if-present/);
+  assert.match(workflow, /node scripts\/quality-gate\.js check/);
+  assert.doesNotMatch(workflow, /scripts\/\*\.test\.cjs/);
+  assert.doesNotMatch(workflow, /name: SonarCloud/);
+  assert.equal(policy.profile, 'strict-node');
+  assert.deepEqual(policy.project.surfaces, [{
+    type: 'node',
+    root: '.',
+    required: true,
+    commands: {
+      install: 'npm ci',
+      test: 'npm run test --if-present',
+      lint: 'npm run lint --if-present',
+      build: 'npm run build --if-present',
+      audit: 'npm audit --audit-level=moderate',
+    },
+  }]);
+  assert.equal(policy.ci.requiredChecks.includes('SonarCloud'), false);
+  assert.match(sonar, /sonar\.sources=src/);
+  assert.match(sonar, /sonar\.javascript\.lcov\.reportPaths=coverage\/lcov\.info/);
+  assert.match(sonar, /sonar\.exclusions=.*scripts\/\*\*/);
+});

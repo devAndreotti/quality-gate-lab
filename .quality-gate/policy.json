@@ -64,5 +64,21 @@
       "samples/**"
     ],
     "pytestBasetempPattern": ".pytest-tmp-qg-${timestamp}-${pid}"
+  },
+  "project": {
+    "surfaces": [
+      {
+        "type": "node",
+        "root": ".",
+        "required": true,
+        "commands": {
+          "install": "npm ci",
+          "test": "npm run test --if-present",
+          "lint": "npm run lint --if-present",
+          "build": "npm run build --if-present",
+          "audit": "npm audit --audit-level=moderate"
+        }
+      }
+    ]
   }
 }

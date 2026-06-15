@@ -166,7 +166,8 @@ function checkWorkflowSurfaces(workflowText, policy) {
   if (surfaces.some((surface) => surface.type === 'python-uv' && surface.required) && !names.includes('Python validation')) {
     missing.push('Python validation');
   }
-  if (surfaces.some((surface) => surface.type === 'node' && surface.required) && !names.includes('UI validation')) {
+  const hasNodeWorkflow = names.includes('UI validation') || names.includes('Tests & ratchet');
+  if (surfaces.some((surface) => surface.type === 'node' && surface.required) && !hasNodeWorkflow) {
     missing.push('UI validation');
   }
   return {

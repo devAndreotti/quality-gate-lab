@@ -67,7 +67,7 @@ function unique(values) {
 function runBabysitCycle(options) {
   const snapshot = options.snapshotProvider
     ? options.snapshotProvider(options)
-    : buildSnapshot({ pr: options.pr, repo: options.repo });
+    : buildSnapshot({ pr: options.pr, repo: options.repo, cwd: options.cwd || process.cwd() });
   const diagnosis = options.diagnoseProvider
     ? options.diagnoseProvider(snapshot)
     : diagnoseRun({ snapshot });

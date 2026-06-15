@@ -107,7 +107,7 @@ function renderQualityGateWorkflow(policy = {}) {
       run:
         working-directory: ${pythonRoot}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -127,8 +127,8 @@ function renderQualityGateWorkflow(policy = {}) {
       run:
         working-directory: ${nodeRoot}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -144,15 +144,15 @@ function renderQualityGateWorkflow(policy = {}) {
     name: Security audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: echo "security delegated to surface jobs"`);
 
   jobs.push(`  docker:
     name: Docker image gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
       - run: node scripts/docker-gate.cjs --project . --json`);
@@ -172,8 +172,8 @@ function renderQualityGateWorkflow(policy = {}) {
       issues: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
       - name: Generate PR snapshot

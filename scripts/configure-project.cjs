@@ -75,10 +75,10 @@ function pythonWorkflow(projectDir, options = {}) {
     needs: test
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: coverage-report
           path: coverage/
@@ -124,7 +124,7 @@ jobs:
       run:
         working-directory: ${workingDirectory}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -140,7 +140,7 @@ jobs:
       run:
         working-directory: ${workingDirectory}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -151,7 +151,7 @@ jobs:
           mkdir -p ${coverageDir}
           uvx ruff check src tests --output-format=json > ${ruffJson}
       - name: Upload Ruff report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ruff-report
@@ -165,14 +165,14 @@ jobs:
       run:
         working-directory: ${workingDirectory}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - uses: astral-sh/setup-uv@v5
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
       - run: uv sync --dev
@@ -184,7 +184,7 @@ jobs:
         working-directory: .
         run: node scripts/quality-gate.js check
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-report
@@ -196,14 +196,14 @@ ${sonarJob}
     name: Docker image gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
       - name: Docker Image Doctor gate
         run: node scripts/docker-gate.cjs --project . --json
       - name: Upload Docker gate report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: docker-gate-report
@@ -221,11 +221,11 @@ ${sonarJob}
       issues: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: coverage-report
           path: coverage/
@@ -264,10 +264,10 @@ function nodeWorkflow(projectDir, options = {}) {
     needs: test
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: coverage-report
           path: coverage/
@@ -327,8 +327,8 @@ jobs:
       run:
         working-directory: ${workingDirectory}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -346,8 +346,8 @@ jobs:
       run:
         working-directory: ${workingDirectory}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -362,10 +362,10 @@ jobs:
       run:
         working-directory: ${workingDirectory}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -379,7 +379,7 @@ jobs:
         working-directory: .
         run: node scripts/quality-gate.js check
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-report
@@ -391,14 +391,14 @@ ${sonarJob}
     name: Docker image gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
       - name: Docker Image Doctor gate
         run: node scripts/docker-gate.cjs --project . --json
       - name: Upload Docker gate report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: docker-gate-report
@@ -416,11 +416,11 @@ ${sonarJob}
       issues: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: coverage-report
           path: coverage/
@@ -453,6 +453,7 @@ function nodeSonarProperties(current, projectDir) {
   const lines = current
     .split(/\r?\n/)
     .filter((line) => !/^sonar\.(sources|tests|test\.inclusions|exclusions|javascript\.lcov\.reportPaths|typescript\.tsconfigPath|python\.coverage\.reportPaths)=/.test(line));
+  while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop();
   lines.push(
     `sonar.sources=${prefix}src`,
     `sonar.tests=${prefix}test,${prefix}tests`,
@@ -468,6 +469,7 @@ function pythonSonarProperties(current, projectDir) {
   const lines = current
     .split(/\r?\n/)
     .filter((line) => !/^sonar\.(sources|tests|test\.inclusions|exclusions|javascript\.lcov\.reportPaths|typescript\.tsconfigPath|python\.coverage\.reportPaths)=/.test(line));
+  while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop();
   lines.push(
     `sonar.sources=${prefix}src`,
     `sonar.tests=${prefix}tests`,

@@ -1,0 +1,247 @@
+# quality-gate:managed-workflow version 1
+name: Quality Gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+# Cancela rodadas anteriores do mesmo PR para economizar minutos
+concurrency:
+  group: quality-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+# Permissão mínima global: leitura.
+permissions:
+  contents: read
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 1 — Segurança
+  # ───────────────────────────────────────────────────────────────────────────
+  security:
+    name: Security audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalação determinística
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            echo "package-lock.json ausente; pulando npm ci"
+          fi
+
+      - name: Vulnerabilidade crítica (bloqueia o CI)
+        run: |
+          if [ -f package-lock.json ]; then
+            npm audit --audit-level=critical
+          else
+            echo "package-lock.json ausente; pulando npm audit"
+          fi
+
+      - name: Vulnerabilidade alta (avisa, não bloqueia)
+        run: |
+          if [ -f package-lock.json ]; then
+            npm audit --audit-level=high || true
+          else
+            echo "package-lock.json ausente; pulando npm audit advisory"
+          fi
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 2 — Lint
+  # ───────────────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Node syntax check
+        run: node scripts/check-syntax.cjs
+        continue-on-error: false
+
+      - name: Upload ESLint report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eslint-report
+          path: coverage/eslint-report.json
+          retention-days: 7
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 3 — Testes + Coverage + Ratchet
+  # ───────────────────────────────────────────────────────────────────────────
+  test:
+    name: Tests & ratchet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # histórico completo para diff de cobertura
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Node tests — coverage completo
+        run: |
+          mkdir -p coverage
+          node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info scripts/*.test.cjs
+          node scripts/test-coverage-ci.cjs
+        env:
+          CI: true
+
+      # Ratchet: compara métricas com baseline.json commitado.
+      # Falha se linhas, statements, functions ou branches regrediram.
+      - name: Ratchet — quality gate
+        run: node scripts/quality-gate.js check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload coverage (agente babysit lê daqui)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 4 — SonarCloud
+  # Roda depois do test para consumir o coverage já gerado.
+  # ───────────────────────────────────────────────────────────────────────────
+  sonar:
+    name: SonarCloud
+    runs-on: ubuntu-latest
+    needs: test
+    # Pula em push direto na main (sem PR) para não gastar créditos
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # SonarCloud precisa do histórico completo
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Baixar coverage do job anterior
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+
+      - name: Detectar configuração do SonarCloud
+        id: sonar-config
+        shell: bash
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -n "$SONAR_TOKEN" ] && ! grep -Eq 'YOUR_ORG|YOUR_REPO' sonar-project.properties; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "SonarCloud não configurado; job tratado como advisory skip"
+          fi
+
+      - name: SonarCloud scan
+        if: steps.sonar-config.outputs.enabled == 'true'
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Bloqueia o merge se o quality gate do Sonar falhar
+      - name: SonarCloud quality gate check
+        if: steps.sonar-config.outputs.enabled == 'true'
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 5 — Docker Image Doctor / fallback estático
+  # Detecta primeiro. Repos sem Docker viram skipped interno e job verde.
+  # ───────────────────────────────────────────────────────────────────────────
+  docker:
+    name: Docker image gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Docker Image Doctor gate
+        run: node scripts/docker-gate.cjs --project . --json
+
+      - name: Upload Docker gate report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: docker-gate-report
+          path: .quality-gate/reports/docker-image-doctor.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 6 — Sticky comment no PR
+  # Roda sempre (mesmo se jobs anteriores falharam) para o agente ter visibilidade.
+  # ───────────────────────────────────────────────────────────────────────────
+  report:
+    name: PR report
+    runs-on: ubuntu-latest
+    needs: [security, lint, test, sonar, docker]
+    if: always() && github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Baixar coverage (para incluir métricas no comentário)
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+        continue-on-error: true
+
+      - name: Generate PR snapshot
+        run: node scripts/pr-snapshot.cjs --pr "$PR_NUMBER" --json --output .quality-gate/reports/pr-snapshot.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        continue-on-error: true
+
+      - name: Postar sticky comment no PR
+        run: node scripts/pr-comment.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_ID: ${{ github.run_id }}
+          SECURITY_RESULT: ${{ needs.security.result }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+          SONAR_RESULT: ${{ needs.sonar.result }}
+          DOCKER_RESULT: ${{ needs.docker.result }}
+          REQUIRED_CHECKS: 'Security audit,Lint,Tests & ratchet,Docker image gate'
+          SNAPSHOT_PATH: .quality-gate/reports/pr-snapshot.json

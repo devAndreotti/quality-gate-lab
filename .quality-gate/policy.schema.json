@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Quality Gate Policy",
+  "type": "object",
+  "required": ["schemaVersion", "profile", "ci", "bootstrap", "github", "dockerImageDoctor"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "profile": { "type": "string", "minLength": 1 },
+    "project": {
+      "type": "object",
+      "required": ["surfaces"],
+      "properties": {
+        "surfaces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "root", "required"],
+            "properties": {
+              "type": { "enum": ["python-uv", "node"] },
+              "root": { "type": "string", "minLength": 1 },
+              "required": { "type": "boolean" },
+              "coverageJson": { "type": "string", "minLength": 1 },
+              "commands": {
+                "type": "object",
+                "properties": {
+                  "install": { "type": "string" },
+                  "test": { "type": "string" },
+                  "lint": { "type": "string" },
+                  "build": { "type": "string" },
+                  "audit": { "type": "string" }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ci": {
+      "type": "object",
+      "required": ["requiredChecks", "coverageRatchet", "maxFileLines"],
+      "properties": {
+        "requiredChecks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "advisoryChecks": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "coverageRatchet": { "type": "boolean" },
+        "maxFileLines": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "bootstrap": {
+      "type": "object",
+      "required": ["license", "funding", "dependabot", "readme"],
+      "properties": {
+        "license": {
+          "type": "object",
+          "required": ["enabled", "type"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "type": { "const": "MIT" }
+          },
+          "additionalProperties": false
+        },
+        "funding": {
+          "type": "object",
+          "required": ["enabled", "buyMeACoffee"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "buyMeACoffee": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        "dependabot": {
+          "type": "object",
+          "required": ["enabled"],
+          "properties": {
+            "enabled": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "readme": {
+          "type": "object",
+          "required": ["enabled", "style"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "style": { "const": "devandreotti" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "github": {
+      "type": "object",
+      "required": ["copilotReview", "branchProtection", "requireConversationResolution"],
+      "properties": {
+        "copilotReview": { "type": "boolean" },
+        "branchProtection": { "type": "boolean" },
+        "requireConversationResolution": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "dockerImageDoctor": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "runWhen",
+        "scriptPath",
+        "agentArgs",
+        "interactiveAllowed",
+        "blockOn",
+        "warnOn",
+        "fallbackWhenUnavailable"
+      ],
+      "properties": {
+        "enabled": { "enum": ["auto", "always", "never"] },
+        "runWhen": { "const": "docker-files-present" },
+        "scriptPath": { "type": "string", "minLength": 1 },
+        "agentArgs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "interactiveAllowed": { "const": false },
+        "blockOn": {
+          "type": "array",
+          "items": { "enum": ["Critical", "High", "Medium", "Low", "Info"] }
+        },
+        "warnOn": {
+          "type": "array",
+          "items": { "enum": ["Critical", "High", "Medium", "Low", "Info"] }
+        },
+        "fallbackWhenUnavailable": { "enum": ["static-advisory", "skip", "fail"] }
+      },
+      "additionalProperties": false
+    },
+    "localValidation": {
+      "type": "object",
+      "properties": {
+        "untrackedAllowlist": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "pytestBasetempPattern": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

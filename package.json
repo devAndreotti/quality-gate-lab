@@ -1,0 +1,16 @@
+{
+  "name": "quality-gate-lab",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Small repo to test Quality Gate behavior, fallbacks, and babysit-pr boundaries.",
+  "license": "MIT",
+  "scripts": {
+    "pretest": "node -e \"require('fs').mkdirSync('coverage', { recursive: true })\"",
+    "test": "node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/calculator.test.js && node scripts/test-coverage-ci.cjs",
+    "lint": "node --check src/calculator.js && node --check test/calculator.test.js",
+    "build": "node -e \"require('./src/calculator'); console.log('build smoke ok')\"",
+    "quality:doctor": "node scripts/doctor.cjs --dry-run",
+    "quality:local": "node scripts/local-validate.cjs --project . --profile pr --json",
+    "quality:snapshot": "node scripts/pr-snapshot.cjs --pr 1 --json --output .quality-gate/reports/pr-snapshot.json"
+  }
+}

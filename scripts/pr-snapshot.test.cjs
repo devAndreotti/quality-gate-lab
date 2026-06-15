@@ -104,7 +104,10 @@ test('buildSnapshot normalizes current gh pr checks fields', () => {
     ],
   });
   const githubApi = createGithubApi({
-    '/repos/owner/repo/branches/main/protection/required_status_checks': { contexts: ['Lint'], checks: [] },
+    '/repos/owner/repo/branches/main/protection/required_status_checks': {
+      contexts: ['Lint'],
+      checks: [{ context: 'Lint' }],
+    },
   });
 
   const snapshot = buildSnapshot({ pr: 42, repo: 'owner/repo', ghJson, githubApi });
@@ -112,6 +115,28 @@ test('buildSnapshot normalizes current gh pr checks fields', () => {
   assert.equal(snapshot.checks.required[0].conclusion, 'success');
   assert.equal(snapshot.checks.advisory[0].conclusion, 'failure');
   assert.equal(snapshot.merge.status, 'ready_with_advisory');
+});
+
+test('buildSnapshot infers repo from git origin when repo is omitted', () => {
+  const ghJson = createGhJson({
+    checks: [
+      { name: 'Lint', state: 'SUCCESS', bucket: 'pass', link: 'https://ci/lint' },
+    ],
+  });
+  const githubApi = createGithubApi({
+    '/repos/owner/repo/branches/main/protection/required_status_checks': { contexts: ['Lint'], checks: [] },
+  });
+
+  const snapshot = buildSnapshot({
+    pr: 42,
+    ghJson,
+    githubApi,
+    execFileSync: () => 'https://github.com/owner/repo.git\n',
+  });
+
+  assert.equal(snapshot.repo, 'owner/repo');
+  assert.deepEqual(snapshot.branchProtection.requiredChecks, ['Lint']);
+  assert.equal(snapshot.checks.required[0].conclusion, 'success');
 });
 
 test('deriveActions maps failed checks and blockers to deterministic actions', () => {

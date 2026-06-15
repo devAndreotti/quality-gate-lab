@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
-const { runGhJson, runGhText, runGitHubApi } = require('./lib/github.cjs');
+const {
+  resolveRepo,
+  runGhJson,
+  runGhText,
+  runGitHubApi,
+} = require('./lib/github.cjs');
 
 function parseArgs(argv) {
   const args = {
@@ -239,8 +244,7 @@ function diagnoseRun(options) {
 
   const runId = Number(options.run);
   if (!Number.isInteger(runId) || runId < 1) throw new Error('--run precisa ser numero positivo');
-  const repo = options.repo || process.env.GITHUB_REPOSITORY;
-  if (!repo) throw new Error('--repo ou GITHUB_REPOSITORY requerido');
+  const repo = resolveRepo({ repo: options.repo, cwd: options.cwd, execFileSync: options.execFileSync });
   const ghJson = options.ghJson || runGhJson;
   const ghText = options.ghText || runGhText;
   const githubApi = options.githubApi || runGitHubApi;

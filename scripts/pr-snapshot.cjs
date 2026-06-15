@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
-const { runGhJson, runGitHubApi, splitRepo } = require('./lib/github.cjs');
+const {
+  resolveRepo,
+  runGhJson,
+  runGitHubApi,
+  splitRepo,
+} = require('./lib/github.cjs');
 
 const DEFAULT_ADVISORY_CHECKS = [
   'SonarCloud',
@@ -128,10 +133,10 @@ function isAdvisoryCheck(name, requiredNames = []) {
 }
 
 function normalizeRequiredCheckNames(protection) {
-  return [
+  return [...new Set([
     ...(protection?.requiredChecks || []),
     ...(protection?.checks || []).map((check) => check.context || check.name).filter(Boolean),
-  ].filter(Boolean);
+  ].filter(Boolean))];
 }
 
 function categorizeChecks(checks = [], branchProtection = {}) {
@@ -259,7 +264,10 @@ function fetchBranchProtection({ repo, baseRefName, ghJson, githubApi, allowApiF
   const normalize = (result) => ({
     status: 'known',
     strict: Boolean(result?.strict),
-    requiredChecks: [...(result?.contexts || []), ...(result?.checks || []).map((check) => check.context || check.name).filter(Boolean)],
+    requiredChecks: [...new Set([
+      ...(result?.contexts || []),
+      ...(result?.checks || []).map((check) => check.context || check.name).filter(Boolean),
+    ].filter(Boolean))],
     checks: result?.checks || [],
   });
   try {
@@ -500,8 +508,7 @@ function buildSnapshot(options) {
   const prNumber = Number(options.pr);
   if (!Number.isInteger(prNumber) || prNumber < 1) throw new Error('--pr precisa ser numero positivo');
   const ghJson = options.ghJson || runGhJson;
-  const repo = options.repo || process.env.GITHUB_REPOSITORY;
-  if (!repo) throw new Error('--repo ou GITHUB_REPOSITORY requerido');
+  const repo = resolveRepo({ repo: options.repo, cwd: options.cwd, execFileSync: options.execFileSync });
   const githubApi = options.githubApi || runGitHubApi;
   const allowApiFallback = Boolean(options.githubApi);
 

@@ -12,5 +12,8 @@
     "quality:doctor": "node scripts/doctor.cjs --dry-run",
     "quality:local": "node scripts/local-validate.cjs --project . --profile pr --json",
     "quality:snapshot": "node scripts/pr-snapshot.cjs --pr 1 --json --output .quality-gate/reports/pr-snapshot.json"
+  },
+  "dependencies": {
+    "minimist": "^1.2.5"
   }
 }

@@ -11,6 +11,13 @@
     "build": "node -e \"require('./src/calculator'); console.log('build smoke ok')\"",
     "quality:doctor": "node scripts/doctor.cjs --dry-run",
     "quality:local": "node scripts/local-validate.cjs --project . --profile pr --json",
-    "quality:snapshot": "node scripts/pr-snapshot.cjs --pr 1 --json --output .quality-gate/reports/pr-snapshot.json"
+    "quality:snapshot": "node scripts/pr-snapshot.cjs --pr 1 --json --output .quality-gate/reports/pr-snapshot.json",
+    "format:check": "prettier --check src test",
+    "format": "prettier --write src test",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.10",
+    "typescript": "^5.9.3"
   }
 }

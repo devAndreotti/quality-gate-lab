@@ -13,7 +13,15 @@
       "SonarCloud Code Analysis"
     ],
     "coverageRatchet": true,
-    "maxFileLines": 300
+    "maxFileLines": 300,
+    "diffCoverage": {
+      "enabled": true,
+      "minPercentage": 90,
+      "blockOnFailure": true,
+      "include": [
+        "src/"
+      ]
+    }
   },
   "bootstrap": {
     "license": {

@@ -71,6 +71,15 @@ jobs:
         run: node scripts/check-syntax.cjs
         continue-on-error: false
 
+      - name: Instalar dependências (format e tipos)
+        run: npm ci --ignore-scripts
+
+      - name: Format — Prettier
+        run: npm run -s format:check
+
+      - name: Tipos — tsc checkJs
+        run: npm run -s typecheck
+
       - name: Upload ESLint report
         uses: actions/upload-artifact@v4
         if: always()

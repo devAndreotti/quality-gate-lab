@@ -161,7 +161,18 @@ test('v1 release metadata exists', () => {
 
 test('release mode treats optional Sonar as non-blocker and fails on template baseline', () => {
   const { analyzeQualityGate } = require('./doctor.cjs');
-  const result = analyzeQualityGate({ root, release: true });
+  // Monta o cenário de baseline de template numa cópia temporária, em vez de
+  // depender do scripts/baseline.json atual do repo (que já tem cobertura real).
+  const templateRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-release-template-'));
+  fs.cpSync(root, templateRoot, {
+    recursive: true,
+    filter: (src) => !/[\\/](node_modules|coverage|\.git)([\\/]|$)/.test(src),
+  });
+  fs.writeFileSync(
+    path.join(templateRoot, 'scripts', 'baseline.json'),
+    JSON.stringify({ coverage: { lines: 0, statements: 0, functions: 0, branches: 0 }, oversizedFiles: 0 }, null, 2),
+  );
+  const result = analyzeQualityGate({ root: templateRoot, release: true });
   const releaseGate = result.checks.find((check) => check.name === 'Release readiness');
   const sonar = result.checks.find((check) => check.name === 'SonarCloud configurado');
 

@@ -98,9 +98,9 @@ jobs:
         run: |
           mkdir -p coverage
           # Testes das ferramentas do gate: rodam como verificação, sem medir cobertura.
-          node --test scripts/*.test.cjs
+          node --test --test-timeout=120000 scripts/*.test.cjs
           # Cobertura medida só no código do produto (src/), a mesma base do baseline.json.
-          node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/calculator.test.js
+          node --test --test-timeout=120000 --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/calculator.test.js
           node scripts/test-coverage-ci.cjs
         env:
           CI: true

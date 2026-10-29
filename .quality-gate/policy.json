@@ -17,7 +17,10 @@
     "diffCoverage": {
       "enabled": true,
       "minPercentage": 90,
-      "blockOnFailure": true
+      "blockOnFailure": true,
+      "include": [
+        "src/"
+      ]
     }
   },
   "bootstrap": {

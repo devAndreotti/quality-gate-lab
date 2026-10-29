@@ -109,6 +109,79 @@
           "type": "integer",
           "minimum": 1
         },
+        "architectureBoundary": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "blockOnFailure": {
+              "type": "boolean"
+            },
+            "rules": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "from",
+                  "disallow"
+                ],
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "disallow": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "aiEvals": {
+          "type": "object",
+          "required": [
+            "enabled",
+            "minScore",
+            "blockOnFailure"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "minScore": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "blockOnFailure": {
+              "type": "boolean"
+            },
+            "budget": {
+              "type": "object",
+              "properties": {
+                "maxCases": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "maxOutputChars": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
         "diffCoverage": {
           "type": "object",
           "properties": {
@@ -122,6 +195,13 @@
             },
             "blockOnFailure": {
               "type": "boolean"
+            },
+            "include": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
             }
           },
           "additionalProperties": false

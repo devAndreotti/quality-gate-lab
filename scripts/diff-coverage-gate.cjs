@@ -65,7 +65,7 @@ function runDiffCoverageGate(options = {}) {
     lcovText = fs.readFileSync(lcovPath, 'utf8');
   }
 
-  const result = evaluateDiffCoverage({ diffText, lcovText, minDiffCoverage: config.minPercentage });
+  const result = evaluateDiffCoverage({ diffText, lcovText, minDiffCoverage: config.minPercentage, include: config.include || [] });
   const blocking = config.blockOnFailure !== false;
   const status = result.passed ? 'passed' : (blocking ? 'failed' : 'advisory');
   return { status, blocking, base: options.base, ...result };

@@ -107,6 +107,13 @@ jobs:
 
       # Ratchet: compara métricas com baseline.json commitado.
       # Falha se linhas, statements, functions ou branches regrediram.
+      # Linhas novas do PR precisam de teste: arquivo sem registro no LCOV conta como não coberto.
+      - name: Diff coverage — linhas novas do PR
+        if: github.event_name == 'pull_request'
+        run: node scripts/diff-coverage-gate.cjs --base "$BASE_SHA"
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+
       - name: Ratchet — quality gate
         run: node scripts/quality-gate.js check
         env:

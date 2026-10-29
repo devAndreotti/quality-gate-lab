@@ -153,7 +153,7 @@ function findCoverageForFile(lcovMap, diffFile) {
 // - Linha adicionada em arquivo de produção e executável: precisa de hits > 0.
 // - Arquivo de produção alterado que não aparece no LCOV: nenhum teste o carregou,
 //   então todas as linhas não em branco adicionadas contam como descobertas.
-function evaluateDiffCoverage({ diffText, lcovText, minDiffCoverage = 90 }) {
+function evaluateDiffCoverage({ diffText, lcovText, minDiffCoverage = 90, include = [] }) {
   const addedLines = parseAddedLines(diffText);
   const lcovMap = parseLcovCoverageMap(lcovText);
 
@@ -164,6 +164,7 @@ function evaluateDiffCoverage({ diffText, lcovText, minDiffCoverage = 90 }) {
 
   for (const [file, lines] of addedLines.entries()) {
     if (!isGatedSource(file)) continue;
+    if (include.length && !include.some((prefix) => file.startsWith(prefix))) continue;
 
     const fileCoverage = findCoverageForFile(lcovMap, file);
     if (!fileCoverage) {

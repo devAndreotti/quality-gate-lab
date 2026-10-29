@@ -195,6 +195,13 @@
             },
             "blockOnFailure": {
               "type": "boolean"
+            },
+            "include": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
             }
           },
           "additionalProperties": false

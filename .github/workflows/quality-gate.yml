@@ -23,6 +23,7 @@ jobs:
   security:
     name: Security audit
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -60,6 +61,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -85,6 +87,7 @@ jobs:
   test:
     name: Tests & ratchet
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -95,6 +98,7 @@ jobs:
           node-version: 20
 
       - name: Node tests — coverage completo
+        timeout-minutes: 10
         run: |
           mkdir -p coverage
           # Testes das ferramentas do gate: rodam como verificação, sem medir cobertura.
@@ -134,6 +138,7 @@ jobs:
   sonar:
     name: SonarCloud
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: test
     # Pula em push direto na main (sem PR) para não gastar créditos
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
@@ -187,6 +192,7 @@ jobs:
   docker:
     name: Docker image gate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -213,6 +219,7 @@ jobs:
   report:
     name: PR report
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [security, lint, test, sonar, docker]
     if: always() && github.event_name == 'pull_request'
     permissions:

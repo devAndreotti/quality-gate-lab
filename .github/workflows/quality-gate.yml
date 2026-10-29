@@ -97,7 +97,10 @@ jobs:
       - name: Node tests — coverage completo
         run: |
           mkdir -p coverage
-          node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info scripts/*.test.cjs
+          # Testes das ferramentas do gate: rodam como verificação, sem medir cobertura.
+          node --test scripts/*.test.cjs
+          # Cobertura medida só no código do produto (src/), a mesma base do baseline.json.
+          node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/calculator.test.js
           node scripts/test-coverage-ci.cjs
         env:
           CI: true

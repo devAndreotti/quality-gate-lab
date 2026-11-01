@@ -17,6 +17,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
+    "is-number": "git+https://github.com/jonschlinkert/is-number.git",
     "prettier": "^3.9.10",
     "typescript": "^5.9.3"
   }

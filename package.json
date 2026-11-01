@@ -2,7 +2,7 @@
   "name": "quality-gate-lab",
   "version": "0.1.0",
   "private": true,
-  "description": "Small repo to test Quality Gate behavior, fallbacks, and babysit-pr boundaries. (teste piloto Socket)",
+  "description": "Small repo to test Quality Gate behavior, fallbacks, and babysit-pr boundaries. (teste piloto Socket, 2)",
   "license": "MIT",
   "scripts": {
     "pretest": "node -e \"require('fs').mkdirSync('coverage', { recursive: true })\"",

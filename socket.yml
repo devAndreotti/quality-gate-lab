@@ -1,0 +1,35 @@
+# Piloto do Socket em modo advisory: observação, sem bloqueio.
+# Não é required check e não está em branch protection, então nenhum merge depende dele.
+# Protocolo e critérios de decisão: docs/socket-pilot.md
+version: 2
+
+projectIgnorePaths:
+  - node_modules
+  - coverage
+  - dist
+
+# Só analisa PRs que mudam manifests. Sem isso, qualquer arquivo dispara a análise.
+triggerPaths:
+  - package.json
+  - package-lock.json
+
+githubApp:
+  enabled: true
+  pullRequestAlertsEnabled: true
+  dependencyOverviewEnabled: true
+  projectReportsEnabled: true
+  disableCommentsAndCheckRuns: false
+
+# Todos os alertas ligados explicitamente, para o piloto medir o que está ativo.
+issueRules:
+  didYouMean: true
+  installScripts: true
+  telemetry: true
+  troll: true
+  malware: true
+  hasNativeCode: true
+  shellScriptOverride: true
+  gitDependency: true
+  httpDependency: true
+  invalidPackageJSON: true
+  unresolvedRequire: true

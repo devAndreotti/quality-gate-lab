@@ -1,14 +1,11 @@
-// EXPERIMENTO DE FLAKY (rótulo conhecido, não é bug).
-// Falha em rodadas ímpares e passa em pares, usando um contador em arquivo.
-// Serve para gerar runs de instabilidade com log completo e rótulo "flaky" por construção.
+// EXPERIMENTO DE FLAKY (rótulo conhecido: causa = timeout sensível a tempo).
+// Simula um teste que depende de tempo: espera um atraso aleatório e falha
+// com "Test timed out" quando o atraso passa do limite. Não é bug do código.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 
-const counter = path.join(__dirname, '.run-counter');
-test('intermittent: fails on odd runs, passes on even runs', () => {
-  const n = fs.existsSync(counter) ? Number(fs.readFileSync(counter, 'utf8')) + 1 : 1;
-  fs.writeFileSync(counter, String(n));
-  assert.equal(n % 2, 0, `run ${n}: falha intermitente intencional`);
+test('timing-sensitive: waits a random delay and times out when it is too long', { timeout: 1500 }, async () => {
+  const delay = 200 + Math.floor(Math.random() * 2000); // 200ms a 2200ms, limite 1500ms
+  await new Promise((resolve) => setTimeout(resolve, delay));
+  assert.ok(delay >= 0);
 });

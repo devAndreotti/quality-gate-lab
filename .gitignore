@@ -6,3 +6,4 @@ coverage/
 
 # Quality Gate
 .quality-gate/state.json
+test/flaky/.run-counter
